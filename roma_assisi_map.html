@@ -4,19 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>로마 · 아씨시 순례 지도</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#F5F0E8;--card:#fff;--border:#DDD6C8;
   --text:#2C2520;--muted:#7A7060;--sub:#B8AD9E;
   --church:#7A1F1F;--food:#B5862A;--infra:#2B5BA8;
+  --active-glow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px;
 }
-body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
 /* ── 헤더 ── */
-.hd{background:var(--card);border-bottom:1px solid var(--border);padding:11px 14px 9px;flex-shrink:0}
-.hd h1{font-size:13px;font-weight:700;margin-bottom:9px}
-.city-tabs{display:flex;gap:5px;margin-bottom:9px}
+.hd{background:var(--card);border-bottom:1px solid var(--border);padding:10px 14px 9px;flex-shrink:0}
+.hd h1{font-size:13px;font-weight:700;margin-bottom:8px}
+.city-tabs{display:flex;gap:5px;margin-bottom:8px}
 .city-tab{padding:4px 13px;border-radius:14px;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
 .city-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
 .leg-row{display:flex;gap:5px;flex-wrap:wrap}
@@ -27,53 +29,62 @@ body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;b
 .leg.on-infra {background:var(--infra);color:#fff;border-color:var(--infra)}
 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-/* ── 지도 + 사이드 레이아웃 ── */
-.main{display:flex;flex:1;overflow:hidden;position:relative}
+/* ── 레이아웃 ── */
+.main{display:flex;flex:1;overflow:hidden}
+#map{flex:1;height:100%}
 
-/* ── 구글맵 iframe ── */
-#gmap{width:100%;height:100%;border:none}
-
-/* ── 마커 오버레이 패널 ── */
-.side{
-  width:220px;flex-shrink:0;background:var(--card);
-  border-left:1px solid var(--border);overflow-y:auto;
-  display:flex;flex-direction:column;
-}
+/* ── 사이드 패널 ── */
+.side{width:220px;flex-shrink:0;background:var(--card);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
 .side-title{padding:10px 12px 6px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0}
-.place-item{
-  padding:9px 12px;border-bottom:0.5px solid var(--border);
-  cursor:pointer;transition:background .1s;
-}
+.place-item{padding:9px 12px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .1s}
 .place-item:hover{background:#F9F6F0}
-.place-item.active{background:#FBF0D8}
+.place-item.active-item{background:#FBF0D8;border-left:3px solid var(--food)}
 .pi-cat{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
 .pi-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px}
 .pi-day{font-size:10px;color:var(--sub)}
 .c-church{color:var(--church)}.c-food{color:var(--food)}.c-infra{color:var(--infra)}
 
-/* ── 팝업 ── */
-.popup{
-  position:absolute;background:var(--card);border-radius:10px;
-  box-shadow:0 4px 20px rgba(0,0,0,.2);width:220px;
-  z-index:40;display:none;left:230px;top:10px;
-}
-.popup.show{display:block}
+/* ── Leaflet 팝업 커스텀 ── */
+.leaflet-popup-content-wrapper{border-radius:10px;padding:0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+.leaflet-popup-content{margin:0!important;width:210px!important}
 .pu{padding:12px 14px}
 .pu-cat{font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-bottom:3px}
 .pu-name{font-size:13px;font-weight:700;line-height:1.3;margin-bottom:5px;color:var(--text)}
 .pu-desc{font-size:11px;color:var(--muted);line-height:1.6}
 .pu-day{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;margin-top:7px}
-.pu-close{position:absolute;top:8px;right:10px;font-size:14px;color:var(--sub);cursor:pointer;line-height:1}
-.pu-gmaps{display:block;margin-top:8px;font-size:10px;color:var(--infra);text-decoration:none;font-weight:600}
-.pu-gmaps:hover{text-decoration:underline}
 .d-c{background:#FDE8E8;color:var(--church)}
 .d-f{background:#FBF0D8;color:#8A6010}
 .d-i{background:#E3EEFF;color:var(--infra)}
+.pu-gmaps{display:block;margin-top:8px;font-size:10px;color:var(--infra);text-decoration:none;font-weight:600}
+.pu-gmaps:hover{text-decoration:underline}
 
-/* 모바일: 사이드패널 숨기고 바텀시트로 */
+/* ── 마커 커스텀 ── */
+.mk-wrap{position:relative;display:flex;flex-direction:column;align-items:center}
+.mk-circle{
+  width:22px;height:22px;border-radius:50%;
+  border:2.5px solid #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.35);
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:#fff;font-weight:700;
+  transition:transform .15s, box-shadow .15s;
+}
+.mk-circle.active-marker{
+  transform:scale(1.5);
+  box-shadow:0 0 0 3px rgba(255,255,255,.9), 0 0 0 5px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.4);
+  z-index:1000;
+}
+.mk-label{
+  background:rgba(44,37,32,.8);color:#fff;
+  font-size:9px;font-weight:600;
+  padding:1px 5px;border-radius:3px;
+  white-space:nowrap;margin-top:2px;
+  opacity:0;transition:opacity .15s;
+  pointer-events:none;
+}
+.mk-wrap:hover .mk-label{opacity:1}
+
 @media(max-width:600px){
   .side{display:none}
-  .popup{left:10px;right:10px;width:auto;top:auto;bottom:10px}
 }
 </style>
 </head>
@@ -94,178 +105,236 @@ body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;b
 </div>
 
 <div class="main">
-  <!-- 구글맵 iframe -->
-  <iframe id="gmap" allowfullscreen loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade"
-    src="about:blank">
-  </iframe>
-
-  <!-- 오른쪽 장소 목록 패널 -->
+  <div id="map"></div>
   <div class="side">
     <div class="side-title" id="sideTitle">장소 목록</div>
     <div id="placeList"></div>
   </div>
-
-  <!-- 팝업 -->
-  <div class="popup" id="popup">
-    <div class="pu">
-      <span class="pu-close" onclick="closePopup()">✕</span>
-      <div class="pu-cat" id="pu-cat"></div>
-      <div class="pu-name" id="pu-name"></div>
-      <div class="pu-desc" id="pu-desc"></div>
-      <span class="pu-day" id="pu-day"></span>
-      <a class="pu-gmaps" id="pu-gmaps" target="_blank">📍 구글맵에서 열기 →</a>
-    </div>
-  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 <script>
 const C={church:'#7A1F1F',food:'#B5862A',infra:'#2B5BA8'};
 const LBL={church:'성당·명소',food:'식사·카페',infra:'숙소·교통·마트'};
-const CLS={church:'c-church d-c',food:'c-food d-f',infra:'c-infra d-i'};
+const DCLS={church:'d-c',food:'d-f',infra:'d-i'};
+const CCLS={church:'c-church',food:'c-food',infra:'c-infra'};
+const ICON={church:'✝',food:'🍽',infra:'🚇'};
 
 const ROME=[
+  // 성당·명소
   {cat:'church',name:'산 조반니 인 라테라노',lat:41.8859,lng:12.5057,day:'DAY 2',desc:'교황의 주교좌. 성스러운 계단(Scala Santa) 인근.'},
-  {cat:'church',name:'산타 마리아 마조레',lat:41.8977,lng:12.4993,day:'DAY 2',desc:'431년 건립. 5세기 모자이크. 한식당 밀집 지역.'},
-  {cat:'church',name:'산 파올로 푸오리 레 무라',lat:41.8588,lng:12.4771,day:'DAY 2',desc:'바오로 순교지. 제단 아래 무덤. 아름다운 중세 회랑.'},
-  {cat:'church',name:'산타 사비나',lat:41.8829,lng:12.4804,day:'DAY 2',desc:'5세기 초기 기독교 성당. 아벤티노 언덕.'},
+  {cat:'church',name:'산타 마리아 마조레',lat:41.8977,lng:12.4993,day:'DAY 2',desc:'431년 건립. 5세기 모자이크. 한식당 밀집.'},
+  {cat:'church',name:'산 파올로 푸오리 레 무라',lat:41.8588,lng:12.4771,day:'DAY 2',desc:'바오로 순교지. 제단 아래 무덤. 중세 회랑.'},
+  {cat:'church',name:'산타 사비나',lat:41.8829,lng:12.4804,day:'DAY 2',desc:'5세기 성당. 아벤티노 언덕. 오렌지 정원 전망.'},
   {cat:'church',name:'바티칸 박물관·시스티나',lat:41.9065,lng:12.4536,day:'DAY 3',desc:'미켈란젤로 천장화. 사전 예약 필수.'},
-  {cat:'church',name:'산 피에트로 대성전',lat:41.9022,lng:12.4539,day:'DAY 3',desc:'세계 최대 가톨릭 성당. 베드로 무덤 참배. 피에타.'},
-  {cat:'church',name:'바티칸 우체국',lat:41.9020,lng:12.4561,day:'DAY 3',desc:'엽서 보내기. 세계에서 가장 빠른 우편으로 유명.'},
-  {cat:'church',name:'판테온',lat:41.8986,lng:12.4769,day:'DAY 4',desc:'609년 기독교 성당 봉헌. 오큘루스 감상.'},
+  {cat:'church',name:'산 피에트로 대성전',lat:41.9022,lng:12.4539,day:'DAY 3',desc:'세계 최대 가톨릭 성당. 베드로 무덤. 피에타.'},
+  {cat:'church',name:'바티칸 우체국',lat:41.9020,lng:12.4561,day:'DAY 3',desc:'엽서 보내기. 세계에서 가장 빠른 우편.'},
+  {cat:'church',name:'판테온',lat:41.8986,lng:12.4769,day:'DAY 4',desc:'609년 기독교 성당 봉헌. 오큘루스.'},
   {cat:'church',name:'나보나 광장',lat:41.8992,lng:12.4731,day:'DAY 4',desc:'바로크 광장. 베르니니 분수.'},
   {cat:'church',name:'트레비 분수',lat:41.9009,lng:12.4833,day:'DAY 4',desc:'로마 최대 바로크 분수(1762년).'},
   {cat:'church',name:'콜로세움',lat:41.8902,lng:12.4922,day:'DAY 4',desc:'로마 제국 원형 경기장. 사전 예약 권장.'},
   {cat:'church',name:'스페인 계단',lat:41.9058,lng:12.4826,day:'DAY 4',desc:'138개 계단. 정상 트리니타 데이 몬티 성당.'},
-  {cat:'church',name:'산 피에트로 인 빈콜리 (모세상)',lat:41.8940,lng:12.4948,day:'DAY 4',desc:'미켈란젤로 뿔달린 모세상 소장.'},
-  {cat:'church',name:'산타 크로체 인 제루살렘메',lat:41.8885,lng:12.5138,day:'DAY 6',desc:'예루살렘 흙 위의 성당. 성십자가 조각 성물.'},
+  {cat:'church',name:'산 피에트로 인 빈콜리 (모세상)',lat:41.8940,lng:12.4948,day:'DAY 4',desc:'미켈란젤로 뿔달린 모세상.'},
+  {cat:'church',name:'산타 크로체 인 제루살렘메',lat:41.8885,lng:12.5138,day:'DAY 6',desc:'예루살렘 흙 위의 성당. 성물 경당.'},
   {cat:'church',name:'라우렌시아 (산 로렌조 인 다마소)',lat:41.8958,lng:12.4706,day:'DAY 6',desc:'4세기 기원. 나보나 광장 인근.'},
   {cat:'church',name:'빌라 보르게세 공원·갤러리',lat:41.9136,lng:12.4921,day:'DAY 6',desc:'80헥타르 공원. 베르니니·카라바조 소장.'},
+  // 식사·카페
   {cat:'food',name:'뎌온다 (한식)',lat:41.9068,lng:12.4535,day:'자유',desc:'Cipro A라인역 인근 한식당.'},
-  {cat:'food',name:'글루텐 프리 (San Pietro 옆)',lat:41.9024,lng:12.4562,day:'자유',desc:'바티칸 광장 옆 글루텐 프리 레스토랑.'},
-  {cat:'food',name:'산 유스타치오 카페',lat:41.8984,lng:12.4762,day:'DAY 4',desc:'판테온 옆. 로마 최고 커피 바. 설탕 미리 넣어줌.'},
+  {cat:'food',name:'글루텐 프리 (San Pietro 옆)',lat:41.9024,lng:12.4562,day:'자유',desc:'바티칸 광장 옆 글루텐 프리 식당.'},
+  {cat:'food',name:'산 유스타치오 카페',lat:41.8984,lng:12.4762,day:'DAY 4',desc:'판테온 옆. 로마 최고 커피 바.'},
   {cat:'food',name:'BaoBao (중국음식)',lat:41.8988,lng:12.4758,day:'자유',desc:'판테온 옆 중국 음식점.'},
-  {cat:'food',name:'Bao House',lat:41.9008,lng:12.4840,day:'자유',desc:'트레비 분수 옆. 바오(찐빵) 전문.'},
-  {cat:'food',name:'Pizza & Focaccia',lat:41.9005,lng:12.4836,day:'자유',desc:'트레비 분수 옆 피자·포카차 전문점.'},
-  {cat:'food',name:'La Notizia Piazzetta',lat:41.8946,lng:12.4870,day:'자유',desc:'트라야누스 시장과 모세상(빈콜리) 사이.'},
-  {cat:'food',name:'미담 (한식)',lat:41.8978,lng:12.5000,day:'자유',desc:'산타 마리아 마조레 인근 한식당.'},
-  {cat:'food',name:'맘마꼬레아 (한식)',lat:41.8975,lng:12.5005,day:'DAY 2',desc:'산타 마리아 마조레 인근. DAY 2 저녁 후보.'},
-  {cat:'food',name:'Pho 1 (쌀국수)',lat:41.8985,lng:12.4930,day:'자유',desc:'산타 마리아 마조레 인근. 쌀국수 전문.'},
-  {cat:'food',name:'POMPI (젤라또·티라미수)',lat:41.9058,lng:12.4831,day:'DAY 4',desc:'스페인 계단 근처. 1960년대부터 운영.'},
+  {cat:'food',name:'Bao House',lat:41.9008,lng:12.4840,day:'자유',desc:'트레비 분수 옆. 바오 전문.'},
+  {cat:'food',name:'Pizza & Focaccia',lat:41.9005,lng:12.4836,day:'자유',desc:'트레비 분수 옆 피자 전문.'},
+  {cat:'food',name:'La Notizia Piazzetta',lat:41.8946,lng:12.4870,day:'자유',desc:'트라야누스 시장과 모세상 사이.'},
+  {cat:'food',name:'미담 (한식)',lat:41.8978,lng:12.5000,day:'자유',desc:'산타 마리아 마조레 인근.'},
+  {cat:'food',name:'맘마꼬레아 (한식)',lat:41.8975,lng:12.5005,day:'DAY 2',desc:'산타 마리아 마조레 인근. DAY 2 저녁.'},
+  {cat:'food',name:'Pho 1 (쌀국수)',lat:41.8985,lng:12.4930,day:'자유',desc:'산타 마리아 마조레 인근.'},
+  {cat:'food',name:'POMPI (젤라또·티라미수)',lat:41.9058,lng:12.4831,day:'DAY 4',desc:'스페인 계단 근처. 1960년대부터.'},
+  // 숙소·교통·마트
   {cat:'infra',name:'CIPRO (지하철 A라인)',lat:41.9071,lng:12.4538,day:'DAY 3',desc:'바티칸 인근 지하철역.'},
-  {cat:'infra',name:'로마 테르미니역',lat:41.9004,lng:12.5013,day:'D1·5·8',desc:'아씨시 기차 07:43 출발. 공항↔시내 거점.'},
+  {cat:'infra',name:'로마 테르미니역',lat:41.9004,lng:12.5013,day:'D1·5·8',desc:'아씨시 기차 07:43 출발. 공항↔시내.'},
   {cat:'infra',name:'콜로세오 역 (지하철 B)',lat:41.8900,lng:12.4924,day:'DAY 2',desc:'지하철 B라인.'},
   {cat:'infra',name:'AGORA (슈퍼마켓)',lat:41.9010,lng:12.4990,day:'자유',desc:'시내 중심 슈퍼마켓.'},
   {cat:'infra',name:'마켓 (마조레 인근)',lat:41.8972,lng:12.5010,day:'자유',desc:'산타 마리아 마조레 근처 마트.'},
   {cat:'infra',name:'피우미치노 공항',lat:41.7999,lng:12.2462,day:'D1·8',desc:'레오나르도 익스프레스 32분.'},
 ];
-
 const ASSISI=[
-  {cat:'church',name:'성 프란치스코 대성전',lat:43.0740,lng:12.6051,day:'DAY 5',desc:'조토 프레스코 28점(상원당) + 프란치스코 무덤(하원당).'},
+  {cat:'church',name:'성 프란치스코 대성전',lat:43.0740,lng:12.6051,day:'DAY 5',desc:'조토 프레스코 28점(상원당) + 무덤(하원당).'},
   {cat:'church',name:'성 클라라 성당',lat:43.0697,lng:12.6124,day:'DAY 5',desc:'클라라 성녀 유해. 움브리아 평원 전망.'},
   {cat:'church',name:'산 루피노 대성당',lat:43.0714,lng:12.6139,day:'DAY 5',desc:'프란치스코·클라라가 세례받은 곳.'},
-  {cat:'food',name:'코뮤네 광장 카페',lat:43.0707,lng:12.6119,day:'DAY 5',desc:'Piazza del Comune. 점심·커피. 미네르바 신전 앞.'},
+  {cat:'food',name:'코뮤네 광장 카페',lat:43.0707,lng:12.6119,day:'DAY 5',desc:'Piazza del Comune. 점심·커피.'},
   {cat:'infra',name:'아씨시역',lat:43.0585,lng:12.6165,day:'DAY 5',desc:'역→마을 버스: P.Matteotti 1번 / V.le G.Marconi 2번.'},
 ];
-
-const CITIES={rome:ROME, assisi:ASSISI};
+const CITIES={rome:ROME,assisi:ASSISI};
 const VIEWS={
-  rome:{lat:41.896, lng:12.490, zoom:14},
-  assisi:{lat:43.071, lng:12.612, zoom:16}
+  rome:{center:[41.896,12.490],zoom:14},
+  assisi:{center:[43.071,12.612],zoom:16}
 };
 
-let curCity='rome', curFilter='all', activeIdx=-1;
+// ── Leaflet 지도 초기화 ──
+const map=L.map('map',{zoomControl:true}).setView(VIEWS.rome.center,VIEWS.rome.zoom);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19,attribution:'© OpenStreetMap'
+}).addTo(map);
 
-// ── 구글맵 iframe URL 생성 ──────────────────────────────
-function buildMapUrl(city, filter){
-  const v = VIEWS[city];
-  const places = CITIES[city].filter(p=> filter==='all' || p.cat===filter);
+// ── 상태 ──
+let curCity='rome', curFilter='all', activeMarkerKey=null;
+const markerMap={}; // key → {marker, place, el}
 
-  // 구글맵 embed search: 여러 마커는 지원 안 됨
-  // 대신 중심좌표로 이동하는 방식 사용
-  return `https://maps.google.com/maps?q=${v.lat},${v.lng}&z=${v.zoom}&output=embed&hl=ko`;
-}
-
-function setMapSrc(city, filter){
-  document.getElementById('gmap').src = buildMapUrl(city, filter);
-}
-
-// ── 사이드 패널 렌더 ────────────────────────────────────
-function renderList(){
-  const places = CITIES[curCity];
-  const list = document.getElementById('placeList');
-  list.innerHTML = '';
-  const filtered = places.filter(p=> curFilter==='all' || p.cat===curFilter);
-
-  document.getElementById('sideTitle').textContent =
-    `장소 목록 (${filtered.length})`;
-
-  filtered.forEach((p, i)=>{
-    const cls = CLS[p.cat].split(' ');
-    const div = document.createElement('div');
-    div.className = 'place-item';
-    div.innerHTML = `
-      <div class="pi-cat ${cls[0]}">${LBL[p.cat]}</div>
-      <div class="pi-name">${p.name}</div>
-      <div class="pi-day">${p.day}</div>`;
-    div.addEventListener('click',()=> selectPlace(p, div));
-    list.appendChild(div);
+function mkIcon(cat,active=false){
+  const c=C[cat];
+  const scale=active?'transform:scale(1.5);':'';
+  const glow=active?`box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px ${c},0 4px 12px rgba(0,0,0,.4);`:'';
+  return L.divIcon({
+    className:'',
+    html:`<div style="
+      width:22px;height:22px;border-radius:50%;
+      background:${c};border:2.5px solid #fff;
+      box-shadow:${active?`0 0 0 3px rgba(255,255,255,.9),0 0 0 5px ${c},0 4px 12px rgba(0,0,0,.4)`:'0 2px 6px rgba(0,0,0,.35)'};
+      display:flex;align-items:center;justify-content:center;
+      font-size:9px;color:#fff;font-weight:700;
+      ${scale}
+      transition:all .2s;
+    "></div>`,
+    iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-14]
   });
 }
 
-// ── 장소 선택 → 팝업 + 구글맵 해당 위치로 이동 ──────────
-function selectPlace(p, el){
-  // 활성화 스타일
-  document.querySelectorAll('.place-item').forEach(d=>d.classList.remove('active'));
-  if(el) el.classList.add('active');
+// ── 레이어 그룹 ──
+const groups={
+  rome:{church:L.layerGroup(),food:L.layerGroup(),infra:L.layerGroup()},
+  assisi:{church:L.layerGroup(),food:L.layerGroup(),infra:L.layerGroup()}
+};
 
-  // 팝업
-  const cls = CLS[p.cat].split(' ');
-  document.getElementById('pu-cat').className='pu-cat '+cls[0];
-  document.getElementById('pu-cat').textContent = LBL[p.cat];
-  document.getElementById('pu-name').textContent = p.name;
-  document.getElementById('pu-desc').textContent = p.desc;
-  document.getElementById('pu-day').className='pu-day '+cls[1];
-  document.getElementById('pu-day').textContent = p.day;
+Object.entries(CITIES).forEach(([city,places])=>{
+  places.forEach((p,idx)=>{
+    const key=`${city}-${idx}`;
+    const popup=`<div class="pu">
+      <div class="pu-cat ${CCLS[p.cat]}">${LBL[p.cat]}</div>
+      <div class="pu-name">${p.name}</div>
+      <div class="pu-desc">${p.desc}</div>
+      <span class="pu-day ${DCLS[p.cat]}">${p.day}</span>
+      <a class="pu-gmaps" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}" target="_blank">📍 구글맵에서 열기 →</a>
+    </div>`;
+    const marker=L.marker([p.lat,p.lng],{icon:mkIcon(p.cat)})
+      .bindPopup(popup,{maxWidth:230});
+    marker.on('click',()=>activatePlace(key));
+    groups[city][p.cat].addLayer(marker);
+    markerMap[key]={marker,place:p,city,cat:p.cat};
+  });
+});
 
-  // 구글맵 해당 장소로 이동
-  const gmapUrl = `https://maps.google.com/maps?q=${p.lat},${p.lng}&z=17&output=embed&hl=ko`;
-  document.getElementById('gmap').src = gmapUrl;
+// ── 활성화 함수 ──
+function activatePlace(key){
+  // 이전 마커 원래대로
+  if(activeMarkerKey&&markerMap[activeMarkerKey]){
+    const prev=markerMap[activeMarkerKey];
+    prev.marker.setIcon(mkIcon(prev.cat,false));
+  }
+  // 사이드 패널 이전 항목 해제
+  document.querySelectorAll('.place-item').forEach(el=>el.classList.remove('active-item'));
 
-  // "구글맵에서 열기" 링크
-  document.getElementById('pu-gmaps').href =
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' Roma')}&query_place=${p.lat},${p.lng}`;
+  if(activeMarkerKey===key){
+    activeMarkerKey=null;
+    return;
+  }
+  activeMarkerKey=key;
+  const {marker,place,cat}=markerMap[key];
 
-  document.getElementById('popup').classList.add('show');
+  // 마커 강조
+  marker.setIcon(mkIcon(cat,true));
+  // 팝업 열기
+  marker.openPopup();
+  // 지도 이동
+  map.panTo([place.lat,place.lng],{animate:true,duration:.5});
+
+  // 사이드 패널 해당 항목 강조
+  const itemEl=document.querySelector(`[data-key="${key}"]`);
+  if(itemEl){
+    itemEl.classList.add('active-item');
+    itemEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
 }
 
-function closePopup(){
-  document.getElementById('popup').classList.remove('show');
-  document.querySelectorAll('.place-item').forEach(d=>d.classList.remove('active'));
-  // 지도 원래 뷰로 복귀
-  setMapSrc(curCity, curFilter);
+// ── 사이드 패널 렌더 ──
+function renderList(){
+  const places=CITIES[curCity];
+  const list=document.getElementById('placeList');
+  list.innerHTML='';
+  const filtered=places.filter((p,i)=>{
+    const key=`${curCity}-${i}`;
+    return(curFilter==='all'||p.cat===curFilter);
+  });
+  document.getElementById('sideTitle').textContent=`장소 목록 (${filtered.length})`;
+
+  // 카테고리 그룹으로 분리
+  const cats=curFilter==='all'?['church','food','infra']:[curFilter];
+  cats.forEach(cat=>{
+    const catPlaces=filtered.filter(p=>p.cat===cat);
+    if(catPlaces.length===0)return;
+    // 카테고리 헤더
+    const header=document.createElement('div');
+    header.style.cssText='padding:6px 12px 4px;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:#F5F0E8;border-bottom:0.5px solid #DDD6C8;';
+    header.style.color=C[cat];
+    header.textContent={church:'⛪ 성당·명소',food:'🍽 식사·카페',infra:'🚆 숙소·교통·마트'}[cat];
+    list.appendChild(header);
+
+    catPlaces.forEach(p=>{
+      const origIdx=CITIES[curCity].indexOf(p);
+      const key=`${curCity}-${origIdx}`;
+      const div=document.createElement('div');
+      div.className='place-item';
+      div.dataset.key=key;
+      div.innerHTML=`<div class="pi-name">${p.name}</div><div class="pi-day">${p.day}</div>`;
+      div.addEventListener('click',()=>activatePlace(key));
+      list.appendChild(div);
+    });
+  });
 }
 
-function setCity(city, btn){
-  curCity = city;
+// ── 도시 전환 ──
+function setCity(city,btn){
+  curCity=city;
+  activeMarkerKey=null;
   document.querySelectorAll('.city-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  closePopup();
-  setMapSrc(city, curFilter);
+  // 레이어 제거
+  Object.values(groups).forEach(cg=>Object.values(cg).forEach(g=>{if(map.hasLayer(g))map.removeLayer(g)}));
+  applyFilter(curFilter);
+  map.flyTo(VIEWS[city].center,VIEWS[city].zoom,{duration:1.2});
   renderList();
 }
 
-function filter(cat, btn){
-  curFilter = cat;
-  document.querySelectorAll('.leg').forEach(b=>{ b.className='leg' });
+// ── 카테고리 필터 ──
+function filter(cat,btn){
+  curFilter=cat;
+  document.querySelectorAll('.leg').forEach(b=>{b.className='leg'});
   btn.classList.add('on-'+cat);
-  closePopup();
-  setMapSrc(curCity, cat);
+  applyFilter(cat);
   renderList();
 }
 
-// 초기 로드
-setMapSrc('rome','all');
+function applyFilter(cat){
+  const cg=groups[curCity];
+  Object.entries(cg).forEach(([k,g])=>{
+    const show=cat==='all'||cat===k;
+    if(show&&!map.hasLayer(g))map.addLayer(g);
+    if(!show&&map.hasLayer(g))map.removeLayer(g);
+  });
+}
+
+// ── 팝업 닫힐 때 마커 복원 ──
+map.on('popupclose',()=>{
+  if(activeMarkerKey&&markerMap[activeMarkerKey]){
+    const {marker,cat}=markerMap[activeMarkerKey];
+    marker.setIcon(mkIcon(cat,false));
+  }
+  activeMarkerKey=null;
+  document.querySelectorAll('.place-item').forEach(el=>el.classList.remove('active-item'));
+});
+
+// ── 초기화 ──
+Object.values(groups.rome).forEach(g=>g.addTo(map));
 renderList();
 </script>
 </body>
